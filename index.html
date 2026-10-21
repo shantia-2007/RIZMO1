@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حل‌کننده هوشمند معادله انتقال حرارت | مهندسی ریاضی</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vazirmatn Font -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <!-- MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #020617);
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(30, 41, 59, 0.65);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+        }
+        .step-badge {
+            background: linear-gradient(135deg, #6366f1, #ec4899);
+        }
+        .chip-btn {
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            transition: all 0.2s;
+        }
+        .chip-btn:hover {
+            background: rgba(99, 102, 241, 0.35);
+            border-color: #818cf8;
+            transform: translateY(-1px);
+        }
+        .ltr-input {
+            direction: ltr;
+            text-align: left;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto mb-8 text-center">
+        <div class="inline-block px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-sm mb-3">
+            نسخه پیشرفته با ورودی آزاد (Custom Input) + بانک فرمول و شبیه‌ساز زنده
+        </div>
+        <h1 class="text-3xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 py-2">
+            آزمایشگاه و حل‌کننده هوشمند انتقال حرارت (PDE)
+        </h1>
+        <p class="text-slate-400 mt-2 text-sm md:text-base">
+            امکان وارد کردن هر تابع و عدد دلخواه + حل تشریحی مرحله‌به‌مرحله به همراه تطابق ضرایب و انتگرال فوریه
+        </p>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <div class="max-w-7xl mx-auto mb-6 flex justify-center gap-4">
+        <button onclick="switchMainTab('solver')" id="tab-solver" class="px-6 py-3 rounded-xl font-bold transition-all bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+            <span>🧮</span> حل‌کننده تشریحی و شبیه‌ساز
+        </button>
+        <button onclick="switchMainTab('formulas')" id="tab-formulas" class="px-6 py-3 rounded-xl font-bold transition-all glass text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+            <span>📚</span> فرمول‌نامه جامع، اتحادها و معادلات شاخص
+        </button>
+    </div>
+
+    <!-- SOLVER SECTION -->
+    <main id="section-solver" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Right Column: Controls & Custom Inputs -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- 1. Select Equation Type -->
+            <div class="glass rounded-2xl p-5 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-300 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-indigo-500 rounded-full"></span>
+                    ۱. انتخاب نوع شرایط مرزی مسئله
+                </h2>
+                <div class="space-y-2.5">
+                    <button onclick="setProblemType('dirichlet')" id="type-dirichlet" class="w-full text-right p-3.5 rounded-xl border transition-all bg-indigo-600/20 border-indigo-500 text-white">
+                        <div class="font-bold text-sm">🔥 ۱. همگن - دو سر دمای صفر (Dirichlet)</div>
+                        <div class="text-xs text-slate-300 mt-1">$u(0,t)=0 , \quad u(l,t)=0$</div>
+                    </button>
+                    <button onclick="setProblemType('neumann')" id="type-neumann" class="w-full text-right p-3.5 rounded-xl border transition-all bg-slate-800/40 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <div class="font-bold text-sm">🛡️ ۲. همگن - دو سر عایق حرارتی (Neumann)</div>
+                        <div class="text-xs text-slate-400 mt-1">$u_x(0,t)=0 , \quad u_x(l,t)=0$</div>
+                    </button>
+                    <button onclick="setProblemType('nonhomogeneous')" id="type-nonhomogeneous" class="w-full text-right p-3.5 rounded-xl border transition-all bg-slate-800/40 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <div class="font-bold text-sm">⚡ ۳. ناهمگن (دمای مرزی غیرصفر و چشمه $F(x)$)</div>
+                        <div class="text-xs text-slate-400 mt-1">$\alpha^2 u_{xx} = u_t + F(x) , \quad u(0,t)=T_1, u(l,t)=T_2$</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Presets from Notebook -->
+            <div class="glass rounded-2xl p-5 shadow-xl">
+                <h2 class="text-sm font-bold text-pink-400 mb-3 flex items-center gap-2">
+                    <span>⚡</span> بارگذاری سریع مثال‌ها و تمرین‌های جزوه:
+                </h2>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button onclick="loadPreset('page45')" class="p-2.5 rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-200 hover:bg-pink-500/20 transition text-right">
+                        📌 مثال ص ۴۵ (همگن)<br><span class="text-[10px] text-slate-400">$l=1, f(x)=2$</span>
+                    </button>
+                    <button onclick="loadPreset('page46')" class="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-500/20 transition text-right">
+                        📌 مسئله ص ۴۶ (عایق)<br><span class="text-[10px] text-slate-400">$u_x=0, f(x)=x$</span>
+                    </button>
+                    <button onclick="loadPreset('ex2_3')" class="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-200 hover:bg-purple-500/20 transition text-right">
+                        📌 مثال ۳-۲ ص ۵۹ (ناهمگن)<br><span class="text-[10px] text-slate-400">$F=\cos x, T_2=2$</span>
+                    </button>
+                    <button onclick="loadPreset('ex_page62')" class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 transition text-right">
+                        📌 تمرین ص ۶۲ (ناهمگن)<br><span class="text-[10px] text-slate-400">$F=2, f(x)=2+x^2$</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Custom Parameters Input -->
+            <div class="glass rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-indigo-300 flex items-center gap-2">
+                        <span class="w-2 h-6 bg-indigo-500 rounded-full"></span>
+                        ۲. ورود آزاد پارامترهای مسئله
+                    </h2>
+                    <span class="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/30">قابل تایپ دلخواه</span>
+                </div>
+
+                <!-- Length l & Alpha^2 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">طول میله ($l$):</label>
+                        <input type="text" id="inp-l" value="1" placeholder="مثلاً 1 یا pi یا 2*pi" class="ltr-input w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg p-2 text-sm text-white outline-none">
+                        <div class="flex gap-1 mt-1.5">
+                            <button onclick="setVal('inp-l','1')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">1</button>
+                            <button onclick="setVal('inp-l','pi')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">$\pi$</button>
+                            <button onclick="setVal('inp-l','2*pi')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">$2\pi$</button>
+                            <button onclick="setVal('inp-l','2')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">2</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">ضریب $\alpha^2$ در معادله:</label>
+                        <input type="text" id="inp-alpha2" value="1" placeholder="مثلاً 1 یا 4 یا 0.5" class="ltr-input w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg p-2 text-sm text-white outline-none">
+                        <div class="flex gap-1 mt-1.5">
+                            <button onclick="setVal('inp-alpha2','1')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">1</button>
+                            <button onclick="setVal('inp-alpha2','2')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">2</button>
+                            <button onclick="setVal('inp-alpha2','4')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">4</button>
+                            <button onclick="setVal('inp-alpha2','0.25')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-slate-300">0.25</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Non-homogeneous Controls (T1, T2, F(x)) -->
+                <div id="nonhomo-inputs" class="hidden space-y-3 pt-3 border-t border-slate-700/80">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-amber-300 mb-1">دمای ابتدا $u(0,t) = T_1$:</label>
+                            <input type="text" id="inp-T1" value="0" class="ltr-input w-full bg-slate-900 border border-amber-500/40 focus:border-amber-400 rounded-lg p-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-amber-300 mb-1">دمای انتها $u(l,t) = T_2$:</label>
+                            <input type="text" id="inp-T2" value="2" class="ltr-input w-full bg-slate-900 border border-amber-500/40 focus:border-amber-400 rounded-lg p-2 text-sm text-white outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-amber-300 mb-1">چشمه حرارتی $F(x)$ در $\alpha^2 u_{xx} = u_t + F(x)$:</label>
+                        <input type="text" id="inp-Fx" value="cos(x)" placeholder="مثلاً 0 یا cos(x) یا 2 یا x" class="ltr-input w-full bg-slate-900 border border-amber-500/40 focus:border-amber-400 rounded-lg p-2 text-sm text-white outline-none">
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                            <span class="text-[10px] text-slate-400 self-center ml-1">پیشنهادها:</span>
+                            <button onclick="setVal('inp-Fx','0')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-amber-200">0 (بدون چشمه)</button>
+                            <button onclick="setVal('inp-Fx','cos(x)')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-amber-200">cos(x)</button>
+                            <button onclick="setVal('inp-Fx','2')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-amber-200">2</button>
+                            <button onclick="setVal('inp-Fx','sin(x)')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-amber-200">sin(x)</button>
+                            <button onclick="setVal('inp-Fx','x')" class="chip-btn text-[10px] px-2 py-0.5 rounded text-amber-200">x</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Initial Condition f(x) -->
+                <div class="pt-2 border-t border-slate-700/60">
+                    <label class="block text-xs text-emerald-300 mb-1 font-bold">شرط اولیه دمای میله $u(x,0) = f(x)$:</label>
+                    <input type="text" id="inp-fx" value="2" placeholder="هر تابعی برحسب x وارد کنید، مثلاً: 2+x^2" class="ltr-input w-full bg-slate-900 border border-emerald-500/50 focus:border-emerald-400 rounded-lg p-2.5 text-sm text-white outline-none font-bold">
+
+                    <!-- Quick Function Chips -->
+                    <div class="mt-2">
+                        <div class="text-[10px] text-slate-400 mb-1">پیشنهادهای سریع برای $f(x)$ (یا خودتان در کادر بالا تایپ کنید):</div>
+                        <div class="flex flex-wrap gap-1">
+                            <button onclick="setVal('inp-fx','2')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">2</button>
+                            <button onclick="setVal('inp-fx','1')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">1</button>
+                            <button onclick="setVal('inp-fx','x')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">x</button>
+                            <button onclick="setVal('inp-fx','x^2')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">x^2</button>
+                            <button onclick="setVal('inp-fx','2 + x^2')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">2 + x^2</button>
+                            <button onclick="setVal('inp-fx','sin(pi*x)')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">sin(pi*x)</button>
+                            <button onclick="setVal('inp-fx','cos(2*x)')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">cos(2*x)</button>
+                            <button onclick="setVal('inp-fx','1 + sin(x) - cos(x)')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">1+sin(x)-cos(x)</button>
+                            <button onclick="setVal('inp-fx','x*(1-x)')" class="chip-btn text-[11px] px-2 py-0.5 rounded text-emerald-200">x*(1-x)</button>
+                        </div>
+                    </div>
+
+                    <!-- Mini Math Syntax Helper -->
+                    <div class="mt-2.5 p-2 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                        💡 <strong class="text-slate-200">راهنمای تایپ فرمول آزاد:</strong> توان با <code class="text-pink-400">^</code> (مثل <code class="text-indigo-300">x^2</code>)، ضرب با <code class="text-pink-400">*</code> (مثل <code class="text-indigo-300">3*x</code>)، عدد پی با <code class="text-pink-400">pi</code>، توابع مثلثاتی و نمایی با <code class="text-indigo-300">sin(x)</code>، <code class="text-indigo-300">cos(x)</code>، <code class="text-indigo-300">exp(x)</code>.
+                    </div>
+                </div>
+
+                <button onclick="solveProblem()" class="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-lg shadow-indigo-600/30 transition transform active:scale-95">
+                    🚀 حل تشریحی مرحله‌به‌مرحله + ترسیم نمودار
+                </button>
+            </div>
+
+            <!-- 4. Live Thermal Simulator -->
+            <div class="glass rounded-2xl p-5 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-300 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-pink-500 rounded-full"></span>
+                    شبیه‌ساز زنده توزیع دما روی میله
+                </h2>
+                <div class="mb-3">
+                    <div class="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>زمان ($t$): <strong id="time-val" class="text-pink-400 font-mono">0.00</strong> ثانیه</span>
+                        <button onclick="togglePlayTime()" id="btn-play" class="px-2.5 py-0.5 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-500">▶ پخش خودکار زمان</button>
+                    </div>
+                    <input type="range" id="time-slider" min="0" max="2" step="0.01" value="0" oninput="updateSimulation()" class="w-full accent-pink-500 cursor-pointer">
+                </div>
+                <!-- 1D Rod Heatmap -->
+                <div class="text-xs text-slate-400 mb-1">نمای حرارتی میله از $x=0$ تا $x=l$:</div>
+                <canvas id="rod-canvas" height="28" class="w-full rounded-lg border border-slate-700 mb-3"></canvas>
+                <!-- 2D Plot u(x,t) -->
+                <canvas id="plot-canvas" height="190" class="w-full bg-slate-950 rounded-xl border border-slate-800"></canvas>
+            </div>
+        </div>
+
+        <!-- Left Column: Step-by-Step Solution Output -->
+        <div class="lg:col-span-8 space-y-5" id="solution-container">
+            <!-- Dynamically populated by JavaScript -->
+        </div>
+
+    </main>
+
+    <!-- FORMULA HANDBOOK SECTION -->
+    <section id="section-formulas" class="max-w-7xl mx-auto hidden space-y-6">
+
+        <!-- 1. Characteristic Equations (ODEs) -->
+        <div class="glass rounded-2xl p-6 shadow-xl">
+            <h2 class="text-xl font-bold text-indigo-400 mb-4">۱. جدول انواع معادلات شاخص (مشخصه) در جداسازی متغیرها</h2>
+            <p class="text-sm text-slate-300 mb-4">هنگام حل معادله مکانی $X'' - \sigma X = 0$، معادله شاخص $r^2 - \sigma = 0 \implies r^2 = \sigma$ تشکیل می‌شود که بر اساس علامت ثابت جداسازی $\sigma$ سه حالت دارد:</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right border-collapse">
+                    <thead>
+                        <tr class="bg-indigo-950/80 text-indigo-200 border-b border-slate-700">
+                            <th class="p-3">حالت ثابت جداسازی ($\sigma$)</th>
+                            <th class="p-3">ریشه‌های معادله شاخص ($r^2=\sigma$)</th>
+                            <th class="p-3">جواب‌های پایه ($y_1, y_2$)</th>
+                            <th class="p-3">جواب عمومی $X(x)$ و مشتق آن $X'(x)$</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        <tr class="bg-slate-900/50">
+                            <td class="p-3 font-bold text-amber-300">حالت اول: $\sigma = 0$<br><span class="text-xs font-normal text-slate-400">($\Delta = 0$)</span></td>
+                            <td class="p-3">$r_1 = r_2 = 0$<br><span class="text-xs text-slate-400">(ریشه مضاعف)</span></td>
+                            <td class="p-3">$y_1 = 1, \quad y_2 = x$</td>
+                            <td class="p-3">$X(x) = c_1 + c_2 x$<br>$X'(x) = c_2$</td>
+                        </tr>
+                        <tr class="bg-slate-900/30">
+                            <td class="p-3 font-bold text-rose-400">حالت دوم: $\sigma > 0$<br><span class="text-xs font-normal text-slate-400">($\sigma = \lambda^2, \lambda > 0$)</span></td>
+                            <td class="p-3">$r_1 = +\lambda, \quad r_2 = -\lambda$<br><span class="text-xs text-slate-400">( دو ریشه حقیقی متمایز)</span></td>
+                            <td class="p-3">$y_1 = e^{\lambda x}, \quad y_2 = e^{-\lambda x}$</td>
+                            <td class="p-3">$X(x) = c_1 e^{\lambda x} + c_2 e^{-\lambda x}$<br>$X'(x) = c_1 \lambda e^{\lambda x} - c_2 \lambda e^{-\lambda x}$</td>
+                        </tr>
+                        <tr class="bg-slate-900/50">
+                            <td class="p-3 font-bold text-emerald-400">حالت سوم: $\sigma < 0$<br><span class="text-xs font-normal text-slate-400">($\sigma = -\lambda^2, \lambda > 0$)</span></td>
+                            <td class="p-3">$r_1 = +\lambda i, \quad r_2 = -\lambda i$<br><span class="text-xs text-slate-400">(ریشه‌های مزدوج مختلط)</span></td>
+                            <td class="p-3">$y_1 = \sin(\lambda x), \quad y_2 = \cos(\lambda x)$</td>
+                            <td class="p-3">$X(x) = c_1 \sin(\lambda x) + c_2 \cos(\lambda x)$<br>$X'(x) = c_1 \lambda \cos(\lambda x) - c_2 \lambda \sin(\lambda x)$</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. Fourier Series Table -->
+        <div class="glass rounded-2xl p-6 shadow-xl">
+            <h2 class="text-xl font-bold text-pink-400 mb-4">۲. جدول جامع انواع سری‌های فوریه مورد نیاز در PDE</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right border-collapse">
+                    <thead>
+                        <tr class="bg-pink-950/60 text-pink-200 border-b border-slate-700">
+                            <th class="p-3">نوع سری فوریه</th>
+                            <th class="p-3">بازه و کاربرد مرزی</th>
+                            <th class="p-3">فرم بسط سری</th>
+                            <th class="p-3">فرمول محاسبه ضرایب انتگرالی</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        <tr class="bg-slate-900/50">
+                            <td class="p-3 font-bold text-indigo-300">سری فوریه سینوسی<br>(نیم‌دامنه فرد)</td>
+                            <td class="p-3">$[0, l]$<br><span class="text-xs text-slate-400">دو سر دمای صفر:<br>$u(0,t)=u(l,t)=0$</span></td>
+                            <td class="p-3">$$f(x) = \sum_{n=1}^{\infty} c_n \sin\left(\frac{n\pi x}{l}\right)$$</td>
+                            <td class="p-3">$$c_n = \frac{2}{l} \int_{0}^{l} f(x) \sin\left(\frac{n\pi x}{l}\right) dx$$</td>
+                        </tr>
+                        <tr class="bg-slate-900/30">
+                            <td class="p-3 font-bold text-emerald-300">سری فوریه کسینوسی<br>(نیم‌دامنه زوج)</td>
+                            <td class="p-3">$[0, l]$<br><span class="text-xs text-slate-400">دو سر عایق حرارتی:<br>$u_x(0,t)=u_x(l,t)=0$</span></td>
+                            <td class="p-3">$$f(x) = \frac{a_0}{2} + \sum_{n=1}^{\infty} a_n \cos\left(\frac{n\pi x}{l}\right)$$</td>
+                            <td class="p-3">$$a_0 = \frac{2}{l} \int_{0}^{l} f(x) \, dx$$$$a_n = \frac{2}{l} \int_{0}^{l} f(x) \cos\left(\frac{n\pi x}{l}\right) dx$$</td>
+                        </tr>
+                        <tr class="bg-slate-900/50">
+                            <td class="p-3 font-bold text-amber-300">سری فوریه کامل</td>
+                            <td class="p-3">$[-l, l]$<br><span class="text-xs text-slate-400">شرایط مرزی تناوبی</span></td>
+                            <td class="p-3">$$f(x) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left( a_n \cos\frac{n\pi x}{l} + b_n \sin\frac{n\pi x}{l} \right)$$</td>
+                            <td class="p-3">$$a_0 = \frac{1}{l} \int_{-l}^{l} f(x) dx, \quad a_n = \frac{1}{l} \int_{-l}^{l} f(x)\cos\frac{n\pi x}{l} dx$$$$b_n = \frac{1}{l} \int_{-l}^{l} f(x)\sin\frac{n\pi x}{l} dx$$</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. Trigonometric & Hyperbolic Identities -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-purple-400 mb-3">۳. اتحادهای مثلثاتی تبدیل ضرب به جمع و کاهش توان</h3>
+                <ul class="space-y-3 text-sm text-slate-200">
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\sin(A)\sin(B) = \frac{1}{2}\big[\cos(A-B) - \cos(A+B)\big]$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\cos(A)\cos(B) = \frac{1}{2}\big[\cos(A-B) + \cos(A+B)\big]$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\sin(A)\cos(B) = \frac{1}{2}\big[\sin(A+B) + \sin(A-B)\big]$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\sin^2(\theta) = \frac{1-\cos(2\theta)}{2} \quad , \quad \cos^2(\theta) = \frac{1+\cos(2\theta)}{2}$</li>
+                </ul>
+            </div>
+
+            <div class="glass rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-emerald-400 mb-3">۴. مقادیر مرزی، انتگرال‌های جزبه‌جز و روابط هذلولوی</h3>
+                <ul class="space-y-3 text-sm text-slate-200">
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\sin(n\pi) = 0 \quad , \quad \cos(n\pi) = (-1)^n \quad , \quad 1-(-1)^n = \begin{cases} 0 & n \text{ زوج} \\ 2 & n \text{ فرد} \end{cases}$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$e^{\lambda l} - e^{-\lambda l} = 2\sinh(\lambda l) \quad (\sinh(x)=0 \iff x=0)$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\int x \sin(ax) dx = -\frac{x}{a}\cos(ax) + \frac{1}{a^2}\sin(ax)$</li>
+                    <li class="p-3 rounded-lg bg-slate-900/60">$\int x \cos(ax) dx = \frac{x}{a}\sin(ax) + \frac{1}{a^2}\cos(ax)$</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let currentType = 'dirichlet';
+        let simCoeffs = { a0: 0, an: [], cn: [], l: 1, alpha2: 1, vFunc: (x)=>0 };
+        let playInterval = null;
+
+        // Safe Mathematical Expression Evaluator for Custom User Input
+        function evalMathExpr(exprStr, xVal = 0) {
+            if (!exprStr || exprStr.trim() === '') return 0;
+            let s = exprStr.toLowerCase().trim()
+                .replace(/\bpi\b/g, 'Math.PI')
+                .replace(/\be\b/g, 'Math.E')
+                .replace(/sin\(/g, 'Math.sin(')
+                .replace(/cos\(/g, 'Math.cos(')
+                .replace(/tan\(/g, 'Math.tan(')
+                .replace(/sinh\(/g, 'Math.sinh(')
+                .replace(/cosh\(/g, 'Math.cosh(')
+                .replace(/exp\(/g, 'Math.exp(')
+                .replace(/sqrt\(/g, 'Math.sqrt(')
+                .replace(/abs\(/g, 'Math.abs(')
+                .replace(/\^/g, '**');
+            // Handle implicit multiplication like 2x -> 2*x or (x)(x)
+            s = s.replace(/(\d)(x|Math)/g, '$1*$2');
+            s = s.replace(/(x)(\d|Math)/g, '$1*$2');
+            try {
+                const fn = new Function('x', `return (${s});`);
+                const res = fn(xVal);
+                return isFinite(res) ? res : 0;
+            } catch (err) {
+                return 0;
+            }
+        }
+
+        // Convert plain user input into pretty LaTeX
+        function toLatex(exprStr) {
+            if (!exprStr) return '0';
+            return exprStr.trim()
+                .replace(/\*/g, ' ')
+                .replace(/\bpi\b/gi, '\\pi')
+                .replace(/sin\(/gi, '\\sin(')
+                .replace(/cos\(/gi, '\\cos(')
+                .replace(/sinh\(/gi, '\\sinh(')
+                .replace(/cosh\(/gi, '\\cosh(')
+                .replace(/exp\(([^)]+)\)/gi, 'e^{$1}')
+                .replace(/sqrt\(([^)]+)\)/gi, '\\sqrt{$1}');
+        }
+
+        // Numerical Integration using Simpson's Rule (for arbitrary user functions)
+        function integrateSimpson(fn, a, b, N = 300) {
+            if (b === a) return 0;
+            const h = (b - a) / N;
+            let sum = fn(a) + fn(b);
+            for (let i = 1; i < N; i++) {
+                const x = a + i * h;
+                sum += (i % 2 === 0 ? 2 : 4) * fn(x);
+            }
+            return (h / 3) * sum;
+        }
+
+        function setVal(id, val) {
+            document.getElementById(id).value = val;
+            solveProblem();
+        }
+
+        function switchMainTab(tab) {
+            const sSolver = document.getElementById('section-solver');
+            const sFormulas = document.getElementById('section-formulas');
+            const bSolver = document.getElementById('tab-solver');
+            const bFormulas = document.getElementById('tab-formulas');
+            if (tab === 'solver') {
+                sSolver.classList.remove('hidden');
+                sFormulas.classList.add('hidden');
+                bSolver.className = "px-6 py-3 rounded-xl font-bold transition-all bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-2";
+                bFormulas.className = "px-6 py-3 rounded-xl font-bold transition-all glass text-slate-300 hover:bg-slate-800 flex items-center gap-2";
+            } else {
+                sSolver.classList.add('hidden');
+                sFormulas.classList.remove('hidden');
+                bFormulas.className = "px-6 py-3 rounded-xl font-bold transition-all bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-2";
+                bSolver.className = "px-6 py-3 rounded-xl font-bold transition-all glass text-slate-300 hover:bg-slate-800 flex items-center gap-2";
+                if (window.MathJax) MathJax.typesetPromise();
+            }
+        }
+
+        function setProblemType(type) {
+            currentType = type;
+            ['dirichlet', 'neumann', 'nonhomogeneous'].forEach(t => {
+                const btn = document.getElementById('type-' + t);
+                if (t === type) {
+                    btn.className = "w-full text-right p-3.5 rounded-xl border transition-all bg-indigo-600/20 border-indigo-500 text-white";
+                } else {
+                    btn.className = "w-full text-right p-3.5 rounded-xl border transition-all bg-slate-800/40 border-slate-700 text-slate-300 hover:border-slate-500";
+                }
+            });
+            const nonhomoDiv = document.getElementById('nonhomo-inputs');
+            if (type === 'nonhomogeneous') {
+                nonhomoDiv.classList.remove('hidden');
+            } else {
+                nonhomoDiv.classList.add('hidden');
+            }
+            solveProblem();
+        }
+
+        function loadPreset(preset) {
+            if (preset === 'page45') {
+                document.getElementById('inp-l').value = '1';
+                document.getElementById('inp-alpha2').value = '1';
+                document.getElementById('inp-fx').value = '2';
+                setProblemType('dirichlet');
+            } else if (preset === 'page46') {
+                document.getElementById('inp-l').value = 'pi';
+                document.getElementById('inp-alpha2').value = '1';
+                document.getElementById('inp-fx').value = 'x';
+                setProblemType('neumann');
+            } else if (preset === 'ex2_3') {
+                document.getElementById('inp-l').value = 'pi';
+                document.getElementById('inp-alpha2').value = '1';
+                document.getElementById('inp-T1').value = '0';
+                document.getElementById('inp-T2').value = '2';
+                document.getElementById('inp-Fx').value = 'cos(x)';
+                document.getElementById('inp-fx').value = '1 + sin(x) - cos(x)';
+                setProblemType('nonhomogeneous');
+            } else if (preset === 'ex_page62') {
+                document.getElementById('inp-l').value = '1';
+                document.getElementById('inp-alpha2').value = '1';
+                document.getElementById('inp-T1').value = '1';
+                document.getElementById('inp-T2').value = '2';
+                document.getElementById('inp-Fx').value = '2';
+                document.getElementById('inp-fx').value = '2 + x^2';
+                setProblemType('nonhomogeneous');
+            }
+        }
+
+        function createStepCard(stepNum, title, badgeText, contentHtml) {
+            return `
+            <div class="glass-card rounded-2xl p-6 shadow-xl transition-all hover:border-indigo-500/50">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <span class="step-badge w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow">${stepNum}</span>
+                        <h3 class="text-lg font-bold text-white">${title}</h3>
+                    </div>
+                    <span class="text-xs px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">${badgeText}</span>
+                </div>
+                <div class="text-sm text-slate-200 leading-8 space-y-3 overflow-x-auto">
+                    ${contentHtml}
+                </div>
+            </div>`;
+        }
+
+        function solveProblem() {
+            const rawL = document.getElementById('inp-l').value.trim() || '1';
+            const rawAlpha2 = document.getElementById('inp-alpha2').value.trim() || '1';
+            const rawFx = document.getElementById('inp-fx').value.trim() || '1';
+            const rawT1 = document.getElementById('inp-T1').value.trim() || '0';
+            const rawT2 = document.getElementById('inp-T2').value.trim() || '0';
+            const rawSourceF = document.getElementById('inp-Fx').value.trim() || '0';
+
+            const lVal = Math.max(0.1, evalMathExpr(rawL, 0));
+            const alpha2Val = Math.max(0.01, evalMathExpr(rawAlpha2, 0));
+            const T1Val = evalMathExpr(rawT1, 0);
+            const T2Val = evalMathExpr(rawT2, 0);
+
+            const lTex = toLatex(rawL);
+            const alpha2Tex = rawAlpha2 === '1' ? '' : toLatex(rawAlpha2);
+            const fxTex = toLatex(rawFx);
+            const FxTex = toLatex(rawSourceF);
+
+            simCoeffs = { a0: 0, an: [], cn: [], l: lVal, alpha2: alpha2Val, vFunc: (x)=>0 };
+
+            let html = '';
+
+            // =========================================================================
+            // CASE 1: HOMOGENEOUS DIRICHLET (u(0,t)=0, u(l,t)=0)
+            // =========================================================================
+            if (currentType === 'dirichlet') {
+                // Compute Fourier Sine Coefficients numerically for any user function
+                for (let n = 1; n <= 15; n++) {
+                    const cn = (2 / lVal) * integrateSimpson(x => evalMathExpr(rawFx, x) * Math.sin(n * Math.PI * x / lVal), 0, lVal);
+                    simCoeffs.cn.push(cn);
+                }
+
+                // Step 1
+                html += createStepCard('۱', 'تعریف صورت مسئله و شرایط مرزی همگن (دو سر دمای صفر)', 'گام اول: مدل‌سازی', `
+                    <p>مسئله انتقال حرارت یک‌بعدی با شرایط مرزی همگن دیریکله به صورت زیر تعریف شده است:</p>
+                    $$\\begin{cases}
+                    \\text{PDE:} & ${alpha2Tex} u_{xx} = u_t, & 0 < x < ${lTex}, \\quad t > 0 \\\\
+                    \\text{BC:} & u(0,t) = u(${lTex},t) = 0, & t \\ge 0 \\\\
+                    \\text{IC:} & u(x,0) = f(x) = ${fxTex}, & 0 \\le x \\le ${lTex}
+                    \\end{cases}$$
+                `);
+
+                // Step 2
+                html += createStepCard('۲', 'جداسازی متغیرها و تفکیک به دو سیستم ODE', 'گام دوم: تفکیک $X(x)$ و $T(t)$', `
+                    <p>فرض می‌کنیم جواب به صورت حاصل‌ضرب دو تابع مستقل از مکان و زمان یعنی $u(x,t) = X(x)T(t)$ باشد. با جایگذاری در معادله اصلی و تقسیم بر $\\alpha^2 X T$ داریم:</p>
+                    $$\\frac{X''(x)}{X(x)} = \\frac{1}{${rawAlpha2}} \\frac{T'(t)}{T(t)} = \\sigma$$
+                    <p>با اعمال شرایط مرزی $u(0,t)=0 \\implies X(0)=0$ و $u(${lTex},t)=0 \\implies X(${lTex})=0$، دو معادله دیفرانسیل معمولی زیر حاصل می‌شوند:</p>
+                    $$\\text{System 1: } X'' - \\sigma X = 0, \\quad X(0)=0, \\quad X(${lTex})=0$$
+                    $$\\text{System 2: } T' - ${alpha2Tex}\\sigma T = 0$$
+                `);
+
+                // Step 3
+                html += createStepCard('۳', 'بررسی ۳ حالت ثابت جداسازی ($\\sigma$) و حل سیستم‌ها', 'گام سوم: مقادیر ویژه', `
+                    <p>معادله شاخص سیستم ۱ به صورت $r^2 - \\sigma = 0 \\implies r^2 = \\sigma$ است:</p>
+                    <ul class="list-disc pr-5 space-y-2">
+                        <li><strong class="text-rose-400">حالت اول ($\\sigma = 0$):</strong> جواب عمومی $X(x) = c_1 + c_2 x$ است. از $X(0)=0 \\implies c_1=0$ و از $X(${lTex})=0 \\implies c_2=0$ که جواب بدیهی $X(x)=0$ را می‌دهد (رد می‌شود).</li>
+                        <li><strong class="text-rose-400">حالت دوم ($\\sigma = \\lambda^2 > 0$):</strong> جواب $X(x) = c_1 e^{\\lambda x} + c_2 e^{-\\lambda x}$ است که با اعمال $X(0)=X(${lTex})=0$ نتیجه می‌شود $c_1=c_2=0$ (جواب بدیهی - رد می‌شود).</li>
+                        <li><strong class="text-emerald-400">حالت سوم ($\\sigma = -\\lambda^2 < 0$):</strong> جواب عمومی $X(x) = c_1 \\sin(\\lambda x) + c_2 \\cos(\\lambda x)$ است:
+                            $$X(0)=0 \\implies c_2 = 0$$
+                            $$X(${lTex})=0 \\implies c_1 \\sin(\\lambda \\cdot ${lTex}) = 0 \\xrightarrow{c_1 \\neq 0} \\lambda = \\frac{n\\pi}{${lTex}} \\quad (n=1,2,3,\\dots)$$
+                        </li>
+                    </ul>
+                    <p>با جایگذاری $\\sigma = -\\frac{n^2\\pi^2}{(${lTex})^2}$ در سیستم ۲ ($T' + \\frac{n^2\\pi^2\\alpha^2}{l^2}T = 0$)، تابع زمان و <strong>جواب‌های اساسی</strong> به دست می‌آیند:</p>
+                    $$u_n(x,t) = X_n(x)T_n(t) = e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right)$$
+                `);
+
+                // Step 4: General Solution & Coefficients
+                let coeffAnalyticalHtml = '';
+                if (!rawFx.includes('x')) {
+                    // Constant f(x) = k (like Page 45 of notebook)
+                    coeffAnalyticalHtml = `
+                        <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40">
+                            <p class="font-bold text-emerald-300 mb-1">✨ حل تحلیلی دقیق انتگرال برای تابع ثابت $f(x) = ${fxTex}$ (مشابه صفحه ۴۵ جزوه):</p>
+                            $$c_n = \\frac{2}{${lTex}} \\int_{0}^{${lTex}} (${fxTex}) \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right) dx = \\frac{2(${fxTex})}{${lTex}} \\left[ -\\frac{${lTex}}{n\\pi} \\cos\\left(\\frac{n\\pi x}{${lTex}}\\right) \\right]_0^{${lTex}} = \\frac{2(${fxTex})}{n\\pi} \\big(1 - (-1)^n\\big)$$
+                        </div>`;
+                } else {
+                    coeffAnalyticalHtml = `
+                        <div class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/40">
+                            <p class="font-bold text-indigo-300 mb-1">🔢 مقادیر محاسبه‌شده ۴ ضریب اول سری فوریه سینوسی برای $f(x) = ${fxTex}$:</p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center font-mono text-xs mt-2">
+                                <div class="p-2 bg-slate-900 rounded">$c_1 = ${simCoeffs.cn[0].toFixed(4)}$</div>
+                                <div class="p-2 bg-slate-900 rounded">$c_2 = ${simCoeffs.cn[1].toFixed(4)}$</div>
+                                <div class="p-2 bg-slate-900 rounded">$c_3 = ${simCoeffs.cn[2].toFixed(4)}$</div>
+                                <div class="p-2 bg-slate-900 rounded">$c_4 = ${simCoeffs.cn[3].toFixed(4)}$</div>
+                            </div>
+                        </div>`;
+                }
+
+                html += createStepCard('۴', 'جواب عمومی (اصل برهم‌نهی) و محاسبه ضرایب سری فوریه سینوسی', 'گام آخر: جواب نهایی', `
+                    <p>طبق اصل برهم‌نهی، جواب عمومی ترکیبی خطی از تمام جواب‌های اساسی است:</p>
+                    $$u(x,t) = \\sum_{n=1}^{\\infty} c_n e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right)$$
+                    <p>با قرار دادن شرط اولیه $t=0$، داریم $u(x,0) = \\sum_{n=1}^{\\infty} c_n \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right) = ${fxTex}$ که ضرایب آن از فرمول سری فوریه سینوسی به دست می‌آید:</p>
+                    $$c_n = \\frac{2}{${lTex}} \\int_{0}^{${lTex}} \\big(${fxTex}\\big) \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right) dx$$
+                    ${coeffAnalyticalHtml}
+                `);
+            }
+
+            // =========================================================================
+            // CASE 2: HOMOGENEOUS NEUMANN - INSULATED ENDS (u_x(0,t)=0, u_x(l,t)=0)
+            // =========================================================================
+            else if (currentType === 'neumann') {
+                simCoeffs.a0 = (2 / lVal) * integrateSimpson(x => evalMathExpr(rawFx, x), 0, lVal);
+                for (let n = 1; n <= 15; n++) {
+                    const an = (2 / lVal) * integrateSimpson(x => evalMathExpr(rawFx, x) * Math.cos(n * Math.PI * x / lVal), 0, lVal);
+                    simCoeffs.an.push(an);
+                }
+
+                html += createStepCard('۱', 'تعریف صورت مسئله با دو سر عایق حرارتی (شرایط مرزی نویمن)', 'گام اول: مدل‌سازی (ص ۴۵ جزوه)', `
+                    <p>وقتی دو انتهای میله عایق هستند، شار حرارتی (مشتق مکانی دما $u_x$) در ابتدا و انتها صفر است:</p>
+                    $$\\begin{cases}
+                    \\text{PDE:} & ${alpha2Tex} u_{xx} = u_t, & 0 < x < ${lTex}, \\quad t > 0 \\\\
+                    \\text{BC:} & u_x(0,t) = u_x(${lTex},t) = 0, & t \\ge 0 \\\\
+                    \\text{IC:} & u(x,0) = f(x) = ${fxTex}, & 0 \\le x \\le ${lTex}
+                    \\end{cases}$$
+                `);
+
+                html += createStepCard('۲', 'جداسازی متغیرها و استخراج شرایط مرزی مشتقی', 'گام دوم: صفحات ۴۶ جزوه', `
+                    <p>با فرض $u(x,t) = X(x)T(t)$ و اعمال شرایط مرزی عایق $u_x(0,t) = X'(0)T(t) = 0 \\implies X'(0)=0$ و $X'(${lTex})=0$ به دو سیستم زیر می‌رسیم:</p>
+                    $$\\text{System 1: } X'' - \\sigma X = 0, \\quad X'(0)=0, \\quad X'(${lTex})=0$$
+                    $$\\text{System 2: } T' - ${alpha2Tex}\\sigma T = 0$$
+                `);
+
+                html += createStepCard('۳', 'بررسی ۳ حالت ثابت جداسازی $\\sigma$ و یافتن جواب‌های اساسی', 'گام سوم: صفحات ۴۷ تا ۵۰ جزوه', `
+                    <ul class="list-disc pr-5 space-y-2">
+                        <li><strong class="text-emerald-400">حالت اول ($\\sigma = 0$):</strong> جواب عمومی $X(x) = c_1 + c_2 x \\implies X'(x) = c_2$. با اعمال $X'(0)=X'(${lTex})=0$، نتیجه می‌شود $c_2=0$ و $c_1$ آزاد است ($X(x)=c_1$). از سیستم ۲ نیز $T'=0 \\implies T(t)=k$. بنابراین <strong>اولین جواب اساسی</strong> یک مقدار ثابت است:
+                        $$u_0(x,t) = 1$$</li>
+                        <li><strong class="text-rose-400">حالت دوم ($\\sigma = \\lambda^2 > 0$):</strong> $X(x) = c_1 e^{\\lambda x} + c_2 e^{-\\lambda x} \\implies X'(x) = \\lambda(c_1 e^{\\lambda x} - c_2 e^{-\\lambda x})$. شرط $X'(0)=0 \\implies c_1=c_2$ و شرط $X'(${lTex})=0 \\implies 2c_1\\lambda\\sinh(\\lambda \\cdot ${lTex}) = 0 \\implies c_1=c_2=0$ (جواب بدیهی - رد می‌شود).</li>
+                        <li><strong class="text-emerald-400">حالت سوم ($\\sigma = -\\lambda^2 < 0$):</strong> $X(x) = c_1 \\sin(\\lambda x) + c_2 \\cos(\\lambda x) \\implies X'(x) = c_1\\lambda\\cos(\\lambda x) - c_2\\lambda\\sin(\\lambda x)$.
+                        <br>از $X'(0)=0 \\implies c_1=0$ و از $X'(${lTex})=0 \\implies -c_2\\lambda\\sin(\\lambda \\cdot ${lTex})=0 \\implies \\lambda = \\frac{n\\pi}{${lTex}}$.
+                        <br>با حل سیستم ۲، <strong>سایر جواب‌های اساسی</strong> به دست می‌آیند:
+                        $$u_n(x,t) = e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\cos\\left(\\frac{n\\pi x}{${lTex}}\\right) \\quad (n=1,2,3,\\dots)$$</li>
+                    </ul>
+                `);
+
+                html += createStepCard('۴', 'جواب عمومی کسینوسی و محاسبه ضرایب $a_0$ و $a_n$', 'گام آخر: صفحه ۵۱ جزوه', `
+                    <p>با ترکیب خطی جواب‌های اساسی ($u_0=1$ با ضریب $\\frac{a_0}{2}$ و $u_n$ با ضریب $a_n$)، جواب عمومی به صورت سری فوریه کسینوسی نوشته می‌شود:</p>
+                    $$u(x,t) = \\frac{a_0}{2} + \\sum_{n=1}^{\\infty} a_n e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\cos\\left(\\frac{n\\pi x}{${lTex}}\\right)$$
+                    <p>با قرار دادن $t=0$، ضرایب از انتگرال‌های سری فوریه کسینوسی برای تابع شما ($f(x) = ${fxTex}$) محاسبه می‌شوند:</p>
+                    $$a_0 = \\frac{2}{${lTex}} \\int_{0}^{${lTex}} \\big(${fxTex}\\big) dx = ${simCoeffs.a0.toFixed(4)} \\implies \\frac{a_0}{2} = ${(simCoeffs.a0/2).toFixed(4)}$$
+                    $$a_n = \\frac{2}{${lTex}} \\int_{0}^{${lTex}} \\big(${fxTex}\\big) \\cos\\left(\\frac{n\\pi x}{${lTex}}\\right) dx$$
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center font-mono text-xs mt-2">
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$a_1 = ${simCoeffs.an[0].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$a_2 = ${simCoeffs.an[1].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$a_3 = ${simCoeffs.an[2].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$a_4 = ${simCoeffs.an[3].toFixed(4)}$</div>
+                    </div>
+                `);
+            }
+
+            // =========================================================================
+            // CASE 3: NON-HOMOGENEOUS (BCs T1, T2 and Source Term F(x))
+            // =========================================================================
+            else if (currentType === 'nonhomogeneous') {
+                // Steady state v''(x) = F(x) / alpha^2, v(0) = T1, v(l) = T2
+                // Compute double integral of F(x)/alpha^2 numerically + analytical display for common F(x)
+                const I2_at_x = (xVal) => {
+                    if (xVal <= 0) return 0;
+                    // Integral_0^x (x - s) * (F(s)/alpha^2) ds
+                    return integrateSimpson(s => (xVal - s) * (evalMathExpr(rawSourceF, s) / alpha2Val), 0, xVal, 120);
+                };
+                const I2_at_l = I2_at_x(lVal);
+                const A_const = (T2Val - T1Val - I2_at_l) / lVal;
+                const B_const = T1Val;
+
+                const vFunc = (xVal) => I2_at_x(xVal) + A_const * xVal + B_const;
+                simCoeffs.vFunc = vFunc;
+
+                // Compute w(x,0) = f(x) - v(x) and its Fourier Sine coefficients cn
+                for (let n = 1; n <= 15; n++) {
+                    const cn = (2 / lVal) * integrateSimpson(x => (evalMathExpr(rawFx, x) - vFunc(x)) * Math.sin(n * Math.PI * x / lVal), 0, lVal);
+                    simCoeffs.cn.push(cn);
+                }
+
+                // Build analytical formula string for v(x) if F(x) is standard
+                let vAnalyticalLatex = '';
+                const cleanF = rawSourceF.replace(/\s+/g, '');
+                if (cleanF === '0') {
+                    vAnalyticalLatex = `v''(x) = 0 \\implies v(x) = c_1 x + c_2 \\xrightarrow{v(0)=${T1Val},\\, v(${lTex})=${T2Val}} \\mathbf{v(x) = ${T1Val} + \\frac{${T2Val} - (${T1Val})}{${lTex}} x}`;
+                } else if (cleanF === 'cos(x)' && rawL === 'pi' && rawAlpha2 === '1' && T1Val === 0 && T2Val === 2) {
+                    vAnalyticalLatex = `v''(x) = \\cos(x) \\implies v'(x) = \\sin(x) + A \\implies v(x) = -\\cos(x) + Ax + B \\\\
+                    v(0)=0 \\implies -1 + B = 0 \\implies B = 1 \\\\
+                    v(\\pi)=2 \\implies -\\cos(\\pi) + A\\pi + 1 = 2 \\implies A = 0 \\implies \\mathbf{v(x) = 1 - \\cos(x)}`;
+                } else if (!rawSourceF.includes('x')) {
+                    // Constant F(x) = k (like Exercise Page 62 where F(x)=2)
+                    const kOverAlpha = evalMathExpr(rawSourceF, 0) / alpha2Val;
+                    const halfK = kOverAlpha / 2;
+                    vAnalyticalLatex = `v''(x) = \\frac{${FxTex}}{${rawAlpha2}} = ${kOverAlpha} \\implies v(x) = ${halfK} x^2 + Ax + B \\\\
+                    v(0) = ${T1Val} \\implies B = ${T1Val}, \\quad v(${lTex}) = ${T2Val} \\implies A = ${A_const.toFixed(4)} \\\\
+                    \\mathbf{v(x) = ${halfK} x^2 + (${A_const.toFixed(4)}) x + ${T1Val}}`;
+                } else {
+                    vAnalyticalLatex = `v''(x) = \\frac{1}{${rawAlpha2}}\\big(${FxTex}\\big), \\quad v(0)=${T1Val}, \\quad v(${lTex})=${T2Val} \\\\
+                    \\text{با دو بار انتگرال‌گیری و اعمال شرایط مرزی: } v(0)=${vFunc(0).toFixed(2)}, \\quad v(${lTex})=${vFunc(lVal).toFixed(2)}`;
+                }
+
+                // Step 1
+                html += createStepCard('۱', 'تحلیل ناهمگنی مسئله و تغییر متغیر $u(x,t) = w(x,t) + v(x)$', 'گام اول: صفحات ۵۳ تا ۵۸ جزوه', `
+                    <p>مسئله ناهمگن واردشده به صورت زیر است:</p>
+                    $$\\begin{cases}
+                    \\text{PDE:} & ${alpha2Tex} u_{xx} = u_t + ${FxTex}, & 0 < x < ${lTex}, \\quad t > 0 \\\\
+                    \\text{BC:} & u(0,t) = ${T1Val}, \\quad u(${lTex},t) = ${T2Val}, & t \\ge 0 \\\\
+                    \\text{IC:} & u(x,0) = f(x) = ${fxTex}, & 0 \\le x \\le ${lTex}
+                    \\end{cases}$$
+                    <p>چون شرایط مرزی یا معادله ناهمگن هستند، نمی‌توان مستقیماً از جداسازی متغیرها استفاده کرد. جواب را به مجموع <strong>حالت گذرا $w(x,t)$</strong> و <strong>حالت پایدار $v(x)$</strong> تفکیک می‌کنیم:</p>
+                    $$u(x,t) = w(x,t) + v(x)$$
+                `);
+
+                // Step 2
+                html += createStepCard('۲', 'تشکیل و حل معادله حالت پایدار $v(x)$', 'گام دوم: حذف ناهمگنی‌ها', `
+                    <p>با جایگذاری $u = w + v$ در PDE داریم: $${alpha2Tex}(w_{xx} + v''(x)) = w_t + ${FxTex}$$</p>
+                    <p>برای اینکه معادله و شرایط مرزی برای $w(x,t)$ کاملاً همگن (صفر) شوند، تابع $v(x)$ باید در دستگاه زیر صدق کند:</p>
+                    $$\\begin{cases} ${alpha2Tex} v''(x) = ${FxTex} \\\\ v(0) = ${T1Val} \\\\ v(${lTex}) = ${T2Val} \\end{cases}$$
+                    <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40">
+                        $$${vAnalyticalLatex}$$
+                    </div>
+                `);
+
+                // Step 3
+                html += createStepCard('۳', 'تشکیل مسئله همگن برای حالت گذرا $w(x,t)$ و شرط اولیه جدید', 'گام سوم: صفحات ۵۹ تا ۶۱ جزوه', `
+                    <p>اکنون با حذف ناهمگنی توسط $v(x)$، مسئله برای $w(x,t)$ به یک مسئله استاندارد با دو سر دمای صفر تبدیل می‌شود:</p>
+                    $$\\begin{cases}
+                    ${alpha2Tex} w_{xx} = w_t \\\\
+                    w(0,t) = w(${lTex},t) = 0 \\\\
+                    w(x,0) = f(x) - v(x) = \\big(${fxTex}\\big) - v(x)
+                    \\end{cases}$$
+                    <p>که جواب عمومی آن به صورت سری سینوسی است:</p>
+                    $$w(x,t) = \\sum_{n=1}^{\\infty} c_n e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right)$$
+                `);
+
+                // Step 4
+                html += createStepCard('۴', 'محاسبه ضرایب $c_n$ و نوشتن جواب نهایی $u(x,t) = w(x,t) + v(x)$', 'گام آخر: جواب نهایی (ص ۶۲)', `
+                    <p>ضرایب $c_n$ از بسط سری فوریه سینوسیِ تفاضل شرط اولیه یعنی $w(x,0) = f(x) - v(x)$ به دست می‌آیند:</p>
+                    $$c_n = \\frac{2}{${lTex}} \\int_{0}^{${lTex}} \\big[f(x) - v(x)\\big] \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right) dx$$
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center font-mono text-xs my-2">
+                        <div class="p-2 bg-slate-900 rounded border border-indigo-500/40">$c_1 = ${simCoeffs.cn[0].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$c_2 = ${simCoeffs.cn[1].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$c_3 = ${simCoeffs.cn[2].toFixed(4)}$</div>
+                        <div class="p-2 bg-slate-900 rounded border border-slate-700">$c_4 = ${simCoeffs.cn[3].toFixed(4)}$</div>
+                    </div>
+                    <p class="font-bold text-emerald-300">نکته: اگر $w(x,0)$ مضربی از $\\sin(\\frac{k\\pi x}{l})$ شود (مانند مثال ۳-۲ یا تمرین ص ۶۲ که $w(x,0)=0$ می‌شود)، بدون انتگرال‌گیری و با تطابق ضرایب متناظر، ضرایب به دست می‌آیند!</p>
+                    <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 mt-2">
+                        <p class="font-bold text-emerald-300">جواب نهایی مسئله:</p>
+                        $$u(x,t) = v(x) + \\sum_{n=1}^{\\infty} c_n e^{-\\frac{n^2\\pi^2 (${rawAlpha2})}{(${lTex})^2} t} \\sin\\left(\\frac{n\\pi x}{${lTex}}\\right)$$
+                    </div>
+                `);
+            }
+
+            document.getElementById('solution-container').innerHTML = html;
+            if (window.MathJax) MathJax.typesetPromise();
+            updateSimulation();
+        }
+
+        // Evaluate u(x,t) at any point (x, t) for live canvas simulation
+        function evalU(x, t) {
+            const { a0, an, cn, l, alpha2, vFunc } = simCoeffs;
+            if (currentType === 'dirichlet') {
+                let sum = 0;
+                for (let i = 0; i < cn.length; i++) {
+                    const n = i + 1;
+                    sum += cn[i] * Math.exp(-Math.pow(n * Math.PI / l, 2) * alpha2 * t) * Math.sin(n * Math.PI * x / l);
+                }
+                return sum;
+            } else if (currentType === 'neumann') {
+                let sum = a0 / 2;
+                for (let i = 0; i < an.length; i++) {
+                    const n = i + 1;
+                    sum += an[i] * Math.exp(-Math.pow(n * Math.PI / l, 2) * alpha2 * t) * Math.cos(n * Math.PI * x / l);
+                }
+                return sum;
+            } else {
+                let sum = vFunc(x);
+                for (let i = 0; i < cn.length; i++) {
+                    const n = i + 1;
+                    sum += cn[i] * Math.exp(-Math.pow(n * Math.PI / l, 2) * alpha2 * t) * Math.sin(n * Math.PI * x / l);
+                }
+                return sum;
+            }
+        }
+
+        function updateSimulation() {
+            const t = parseFloat(document.getElementById('time-slider').value);
+            document.getElementById('time-val').innerText = t.toFixed(2);
+
+            const rodCanvas = document.getElementById('rod-canvas');
+            const plotCanvas = document.getElementById('plot-canvas');
+            const rCtx = rodCanvas.getContext('2d');
+            const pCtx = plotCanvas.getContext('2d');
+
+            const W = plotCanvas.width = plotCanvas.clientWidth;
+            const H = plotCanvas.height = 190;
+            rodCanvas.width = rodCanvas.clientWidth;
+
+            const l = simCoeffs.l;
+            const pts = 100;
+            let vals = [], vals0 = [];
+            let minU = Infinity, maxU = -Infinity;
+
+            for (let i = 0; i <= pts; i++) {
+                const x = (i / pts) * l;
+                const uNow = evalU(x, t);
+                const u0 = evalU(x, 0);
+                vals.push(uNow);
+                vals0.push(u0);
+                minU = Math.min(minU, uNow, u0, 0);
+                maxU = Math.max(maxU, uNow, u0, 2);
+            }
+            const range = Math.max(0.5, maxU - minU);
+
+            // Draw 1D Thermal Rod Heatmap
+            for (let i = 0; i < pts; i++) {
+                const ratio = Math.max(0, Math.min(1, (vals[i] - minU) / range));
+                const r = Math.round(255 * ratio);
+                const b = Math.round(255 * (1 - ratio));
+                rCtx.fillStyle = `rgb(${r}, 60, ${b})`;
+                rCtx.fillRect((i / pts) * rodCanvas.width, 0, (rodCanvas.width / pts) + 1, rodCanvas.height);
+            }
+
+            // Draw 2D Graph
+            pCtx.clearRect(0, 0, W, H);
+            const pad = 24;
+
+            // Initial t=0 curve (dashed)
+            pCtx.beginPath();
+            pCtx.setLineDash([4, 4]);
+            pCtx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+            pCtx.lineWidth = 1.5;
+            for (let i = 0; i <= pts; i++) {
+                const px = pad + (i / pts) * (W - 2 * pad);
+                const py = H - pad - ((vals0[i] - minU) / range) * (H - 2 * pad);
+                if (i === 0) pCtx.moveTo(px, py); else pCtx.lineTo(px, py);
+            }
+            pCtx.stroke();
+
+            // Current time t curve (solid glowing)
+            pCtx.beginPath();
+            pCtx.setLineDash([]);
+            pCtx.strokeStyle = '#ec4899';
+            pCtx.lineWidth = 3;
+            for (let i = 0; i <= pts; i++) {
+                const px = pad + (i / pts) * (W - 2 * pad);
+                const py = H - pad - ((vals[i] - minU) / range) * (H - 2 * pad);
+                if (i === 0) pCtx.moveTo(px, py); else pCtx.lineTo(px, py);
+            }
+            pCtx.stroke();
+        }
+
+        function togglePlayTime() {
+            const btn = document.getElementById('btn-play');
+            const slider = document.getElementById('time-slider');
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+                btn.innerText = '▶ پخش خودکار زمان';
+            } else {
+                btn.innerText = '⏸ توقف';
+                playInterval = setInterval(() => {
+                    let v = parseFloat(slider.value) + 0.02;
+                    if (v > 2) v = 0;
+                    slider.value = v;
+                    updateSimulation();
+                }, 40);
+            }
+        }
+
+        window.onload = () => {
+            solveProblem();
+            window.addEventListener('resize', updateSimulation);
+        };
+    </script>
+</body>
+</html>
